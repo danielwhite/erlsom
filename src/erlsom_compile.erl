@@ -199,10 +199,24 @@ compile_parsed_xsd(ParsedXsd, Prefix, Namespaces, IncludeFun, IncludeDirs, Inclu
                        undefined -> Namespaces;
                        _ -> [#ns{prefix = Prefix, uri = TargetNs} | Namespaces]
                      end},
+    case Prefix of
+        undefined ->
+            ok;
+        _ ->
+            file:write_file("/tmp/" ++ Prefix ++ "-parsed.el",
+                            io_lib:fwrite("~p.\n", [ParsedXsd]))
+    end,
   case catch transform(ParsedXsd, Acc) of
     {error, Message} -> {error, Message};
     {'EXIT', Message} -> throw({'EXIT', Message});
     IntermediateResult -> 
+          case Prefix of
+              undefined ->
+                  ok;
+              _ ->
+                  file:write_file("/tmp/" ++ Prefix ++ "-intermidate.el",
+                                  io_lib:fwrite("~p.\n", [IntermediateResult]))
+          end,
       case catch erlsom_pass2:secondPass(IntermediateResult#p1acc.tps,
 					 #schemaInfo{targetNamespace = IntermediateResult#p1acc.tns,
 						     namespaces = IntermediateResult#p1acc.nss,

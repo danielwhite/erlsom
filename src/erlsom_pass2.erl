@@ -69,7 +69,25 @@ secondPass(IntermediateStruct,
                             [], [], Types0, Info, erlsom_lib:newTree()),
   %% Note: pass 4 is done before pass 3 (seems to be better).
   Types2 = pass3(Types1),
+
+    {_, _, Prefix} = lists:keyfind(Tns, 2, NS),
+
+    error_logger:info_msg("~p~n", [Tns]),
+    case Prefix of
+        undefined ->
+            ok;
+        _ ->
+            file:write_file("/tmp/" ++ Prefix ++ "-pass3.erl",
+                            io_lib:fwrite("~p.\n", [Types2]))
+    end,
   Types3 = pass4(Types2, Info),
+    case Prefix of
+        undefined ->
+            ok;
+        _ ->
+            file:write_file("/tmp/" ++ Prefix ++ "-pass4.erl",
+                            io_lib:fwrite("~p.\n", [Types3]))
+    end,
   DocType = make_Document(GlobalElements, [], Info),
   %% fiddle a bit more - replace refernces in the _document that point
   %% to unknown types by {#PCDATA, ...}, assuming that they point to 

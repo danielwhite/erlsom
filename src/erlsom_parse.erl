@@ -175,101 +175,103 @@
 -import(erlsom_lib, [findType/6]). 
 -import(erlsom_lib, [convertPCData/4]).
 
--define(format_record(Rec, Name), 
-user_default:format_record(Rec, Name, record_info(fields, Name))).
+-define(format_record(Rec, Name), user_default:format_record(Rec, Name, record_info(fields, Name))).
 
 %%%% lots of stuff to help debugging. Most of it only produces output if the process variable 'erlsom_debug'
 %%%% is set. This makes it possible to suppress this output in parts of the test program that use erlsom for parsing
 %%%% of a big configuration file.
 
-%% debugFormat(Format, Args) ->
-   %% case get(erlsom_debug) of 
-     %% _ -> 
-       %% io:format(Format, Args);
-     %% _Else ->
-       %% true
-   %% end.
-   
-%% debug(Text) ->
-   %% debugFormat("erlsom_parse: ~P\n", [Text, 20]).
+debugFormat(Format, Args) ->
+    case get(erlsom_debug) of
+        undefined ->
+            ok;
+        _ ->
+            io:format(Format, Args)
+    end.
 
-%% debugMessage(Text) ->
-   %% io:format("\nstatemachine: ~p\n", [Text]).
-   %% %% debugFormat("\nstatemachine: ~p\n", [Text]).
+debug(Text) ->
+    debugFormat("erlsom_parse: ~P\n", [Text, 20]).
 
-%% debugEvent(S) ->
-   %% io:format("event      : ~p\n", [S]).
-   %% %% debugFormat("event      : ~p\n", [S]).
+debugMessage(Text) ->
+    debugFormat("\nstatemachine: ~p\n", [Text]).
 
-%% debugState(#state{currentState = Cs,
-                  %% resultSoFar = Stack}) ->
-  %% printCs(Cs, Stack),
-  %% printStack(Stack).
+debugEvent(S) ->
+    debugFormat("event      : ~p\n", [S]).
 
-%% printStack(Stack) ->
-  %% debugFormat("stack      : ~p\n", [printResultSoFar(Stack)]).
+debugState(#model{}) ->
+    debugFormat("State is a model?", []);
+debugState(#state{currentState = Cs,
+                  resultSoFar = Stack}) ->
+    printCs(Cs, Stack),
+    printStack(Stack);
+debugState(_) ->
+    debugFormat("State is different to expected...", []).
 
-%% printCs(undefined, _Stack) ->
-  %% debugFormat("state      : undefined\n", []);
-  
-%% printCs(#cs{} = Cs, _Stack) ->
-  %% printState(Cs);
 
-%% printCs({'#PCDATA', _, Txt}, Stack) ->
-  %% debugFormat("pcdata     : ~p\n", [Txt]),
-  %% printTopElement(Stack);
+printStack(Stack) ->
+    debugFormat("stack      : ~p\n", [printResultSoFar(Stack)]).
 
-%% printCs({'#text', _, Txt}, Stack) ->
-  %% debugFormat("text       : ~p\n", [Txt]),
-  %% printTopElement(Stack);
-  
-%% printCs(State, _Stack) ->
-  %% debugFormat("state:     : ~P\n", [State, 5]).
-  
-%% printTopElement([]) ->
-  %% debugFormat("next       : []\n", []);
-%% printTopElement([Head | Tail]) ->
-  %% printCs(Head, Tail).
+printCs(undefined, _Stack) ->
+    debugFormat("state      : undefined\n", []);
 
-%% printState(#cs{re = RemainingElements,
-               %% er = ElementRecord, 
-	       %% rl = Real,
-               %% sf = SoFar,
-               %% mxd = Mixed}) ->
-  %% debugFormat("element rec: ~P\n", [ElementRecord, 10]),
-  %% debugFormat("next elemts: ~p\n", [printRemainingElements(RemainingElements)]),
-  %% debugFormat("mixed      : ~p, real: ~p, #so far: ~p\n", [Mixed, Real, SoFar]).
+printCs(#cs{} = Cs, _Stack) ->
+    printState(Cs);
 
-%% printRemainingElements(Re) ->
-  %% printRemainingElements(Re, []).
+printCs({'#PCDATA', _, Txt}, Stack) ->
+    debugFormat("pcdata     : ~p\n", [Txt]),
+    printTopElement(Stack);
 
-%% printRemainingElements([], Acc) ->
-  %% lists:reverse(Acc);
-%% printRemainingElements([Head | Tail], Acc) ->
-  %% case length(Acc) of
-    %% X when X < 2 ->
-      %% printRemainingElements(Tail, [fmtElement(Head) | Acc]);
-    %% _ -> 
-      %% lists:reverse([etc | Acc])
-  %% end.
+printCs({'#text', _, Txt}, Stack) ->
+    debugFormat("text       : ~p\n", [Txt]),
+    printTopElement(Stack);
 
-%% fmtElement(#el{alts = Alternatives, 
-               %% mn = MinOccurs,
-               %% mx = MaxOccurs}) ->
-  %% {fmtAlternatives(Alternatives), {min, MinOccurs}, {max, MaxOccurs}}.
+printCs(State, _Stack) ->
+    debugFormat("state:     : ~P\n", [State, 5]).
 
-%% fmtAlternatives(Alts) ->
-  %% fmtAlternatives(Alts, []).
+printTopElement([]) ->
+    debugFormat("next       : []\n", []);
+printTopElement([Head | Tail]) ->
+    printCs(Head, Tail).
 
-%% fmtAlternatives([], Acc) ->
-  %% lists:reverse(Acc);
-%% fmtAlternatives([#alt{tag = Tag, tp = Type} | Tail], Acc) ->
-  %% case length(Acc) of
-    %% X when X < 2 ->
-      %% fmtAlternatives(Tail, [{alt, {tag, Tag}, {type, Type}} | Acc]);
-    %% _ -> 
-      %% lists:reverse([etc | Acc])
-  %% end.
+printState(#cs{re = RemainingElements,
+               er = ElementRecord,
+               rl = Real,
+               sf = SoFar,
+               mxd = Mixed}) ->
+    debugFormat("element rec: ~P\n", [ElementRecord, 10]),
+    debugFormat("next elemts: ~p\n", [printRemainingElements(RemainingElements)]),
+    debugFormat("mixed      : ~p, real: ~p, #so far: ~p\n", [Mixed, Real, SoFar]).
+
+printRemainingElements(Re) ->
+    printRemainingElements(Re, []).
+
+printRemainingElements([], Acc) ->
+    lists:reverse(Acc);
+printRemainingElements([Head | Tail], Acc) ->
+    case length(Acc) of
+        X when X < 2 ->
+            printRemainingElements(Tail, [fmtElement(Head) | Acc]);
+        _ ->
+            lists:reverse([etc | Acc])
+    end.
+
+fmtElement(#el{alts = Alternatives,
+               mn = MinOccurs,
+               mx = MaxOccurs}) ->
+    {fmtAlternatives(Alternatives), {min, MinOccurs}, {max, MaxOccurs}}.
+
+fmtAlternatives(Alts) ->
+    fmtAlternatives(Alts, []).
+
+fmtAlternatives([], Acc) ->
+    lists:reverse(Acc);
+fmtAlternatives([#alt{tag = Tag, tp = Type} | Tail], Acc) ->
+    case length(Acc) of
+        X when X < 2 ->
+            fmtAlternatives(Tail, [{alt, {tag, Tag}, {type, Type}} | Acc]);
+        _ ->
+            lists:reverse([etc | Acc])
+    end.
 
 %%%% end of the debugging stuff
   
@@ -284,14 +286,14 @@ newRecord(#type{nm = Type, nr = NrOfElements}) ->
 %% Filters out some events and calls the state machine.
 xml2StructCallback(Event, State) ->
 
-  %% debugState(State),
-  %% debugEvent(Event),
+  debugState(State),
+  debugEvent(Event),
   try
     case Event of
       startDocument -> 
          stateMachine(Event, State);
       {startElement, _Uri, _LocalName, _Prefix, _Attributes} ->
-         %% debug(Event),
+         debug(Event),
          stateMachine(Event, State);
       {endElement, _Uri, _LocalName, _Prefix} ->
          stateMachine(Event, State);
@@ -323,7 +325,7 @@ xml2StructCallback(Event, State) ->
       endDocument -> 
          case State of 
            {result, Result} ->
-	     %% debug(Result),
+	     debug(Result),
 	     Result;
 	   _Else ->
              throw({error, "unexpected end"})
@@ -386,7 +388,7 @@ stateMachine(Event,
           end,
           case Tp of
             sequence ->
-              %% debug(NewRecord),
+              debug(NewRecord),
               NewCurrentState = #cs{re = Elements2, sf =0, er = NewRecord, rl = RealElement, mxd = Mixed};
             all ->
               NewCurrentState = #all{re = Elements2, er = NewRecord}
@@ -433,9 +435,9 @@ stateMachine(Event, State = #state{currentState = #cs{re = [],
                                                       er = ElementRecord, 
 					              rl = true}, 
                                    resultSoFar = [Head | Tail]}) ->
-    %% debugMessage("pop"),
-    %% debugState(State),
-    %% debugEvent(Event),
+    debugMessage("1 - pop"),
+    debugState(State),
+    debugEvent(Event),
   case Event of 
     {endElement, _Uri, _LocalName, _Prefix} ->
       NewCurrentState = pop(ElementRecord, Head),
@@ -449,8 +451,8 @@ stateMachine(Event, _State = #state{currentState = #cs{re = [],
                                               er = ElementRecord, 
 					      rl = true}, 
                            resultSoFar = []}) ->
-    %% debugState(_State),
-    %% debugEvent(Event),
+    debugState(_State),
+    debugEvent(Event),
   case Event of 
     {endElement, _Uri, _LocalName, _Prefix} ->
       {result, ElementRecord};
@@ -468,9 +470,9 @@ stateMachine(Event, State = #state{currentState = #cs{re = [],
 					              rl = Real}, 
                                    resultSoFar = [Head | Tail]})
              when Real /= true ->
-    %% debugMessage("~nPop (after 'non-real' element)"),
-    %% debugState(State),
-    %% debugEvent(Event),
+    debugMessage("~nPop (after 'non-real' element)"),
+    debugState(State),
+    debugEvent(Event),
     NewCurrentState = pop(ElementRecord, Head),
     NewState = State#state{currentState = NewCurrentState, 
                            resultSoFar = Tail},
@@ -483,7 +485,7 @@ stateMachine(Event, State = #state{currentState = #altState{name=Name, type=Type
                                                          nss = NamespaceMapping,
                                                          th = TypeHierarchy},
                                    namespaces   = Namespaces}) ->
-  %% debug(Event),
+  debug(Event),
   case Event of %%{
     {startElement, Uri, LocalName, _Prefix, Attributes}  ->
     %% parse element
@@ -493,25 +495,25 @@ stateMachine(Event, State = #state{currentState = #altState{name=Name, type=Type
           %% check on MaxOccurs
 	  if %%{
 	    Max /= unbound, Count >= Max ->
-	      %% debug("But we have already recieved this event the maximum number of times"),
+	      debug("But we have already recieved this event the maximum number of times"),
               %% pop.
               NewState = State#state{currentState = pop(lists:reverse(Acc), Head),
                                      resultSoFar = Tail},
-	      %% debug(NewState#state.currentState),
-	      %% debug(NewState),
+	      debug(NewState#state.currentState),
+	      debug(NewState),
               stateMachine(Event, NewState);
 	    true ->
-	      %% debug("Another event of this type is allowed"),
+	      debug("Another event of this type is allowed"),
 	      case Type of %%{
 		{'#PCDATA', PCDataType} ->
-		  %% debug("receive text events"),
+		  debug("receive text events"),
 		  %% push the current status, create a new level in the state machine
                   State#state{currentState = {'#PCDATA', PCDataType, []}, 
 		              resultSoFar = [State#state.currentState | State#state.resultSoFar]};
 		_Else -> 
 		  %% not text: a complex type.
 		  %% look for the type discription
-	          %% debug("Not text: a complex type"),
+	          debug("Not text: a complex type"),
 		  TypeDef = findType(Type, Types, Attributes, TypeHierarchy, Namespaces, NamespaceMapping),
                   %% #type{els = Elements, atts = ListOfAttributes, nr = NrOfElements} = TypeDef,
 		  %% create new record for this element 
@@ -574,9 +576,9 @@ stateMachine(Event, State = #state{currentState = #altState{name=Name, type=Type
 stateMachine(Event, State = #state{currentState = (#anyState{anyInfo = (#anyInfo{ns = Namespace,
                                                                                  tns = Tns} = Ai)} = Cs),
                                    resultSoFar = [PreviousState | Tail]}) ->
-  %% debugMessage("Any"),
-  %% debugState(State),
-  %% debugEvent(Event),
+  debugMessage("Any"),
+  debugState(State),
+  debugEvent(Event),
   case Event of 
     {characters, _Characters} ->
        %% ignore (for the moment)
@@ -618,12 +620,12 @@ stateMachine(Event, State = #state{currentState = (#anyState{anyInfo = (#anyInfo
 
     {endElement, _Uri, _LocalName, _Prefix} ->
        %% pop, remove the endElement from the input stream
-       %% debug("pop"),
-       %% debug(PreviousState),
+       debug("pop"),
+       debug(PreviousState),
        PreviousState2 = case PreviousState of 
                           #cs{sf = Count} ->
-                            %% debug("Increase Count"),
-                            %% debug(Count+1),
+                            debug("Increase Count"),
+                            debug(Count+1),
                             PreviousState#cs{sf = Count +1};
                           #altState{receivedSoFar=Count} ->
                             PreviousState#altState{receivedSoFar=Count +1};
@@ -644,9 +646,9 @@ stateMachine(Event, State = #state{currentState = {'#PCDATA', Type, TextSoFar},
                                    resultSoFar = [Head | Tail],
 			           model = #model{nss = NamespaceMapping},
                                    namespaces = Namespaces}) -> 
-  %% debugMessage("Receive text events"),
-  %% debugState(State),
-  %% debugEvent(Event),
+  debugMessage("Receive text events"),
+  debugState(State),
+  debugEvent(Event),
   case Event of 
     {characters, Characters} ->
       State#state{currentState = {'#PCDATA', Type, append(TextSoFar, Characters)}};
@@ -657,7 +659,7 @@ stateMachine(Event, State = #state{currentState = {'#PCDATA', Type, TextSoFar},
           throw({error, pp("Wrong Type: ~s/~s", [TextSoFar, Type])})
       end,
       NewCurrentState = insertValue(ConvertedValue, Head), 
-      %% debugFormat("new current state: ~p~n", [NewCurrentState]),
+      debugFormat("new current state: ~p~n", [NewCurrentState]),
       if
         (Tail == []) and (NewCurrentState#cs.rl /= true) -> 
           {result, NewCurrentState#cs.er};
@@ -674,9 +676,9 @@ stateMachine(Event, State = #state{currentState = {'#text', Type, TextSoFar},
                                    resultSoFar = [Head | Tail],
 			           model = #model{nss = NamespaceMapping},
                                    namespaces = Namespaces}) ->
-  %% debugMessage("Receive text events (in case of mixed elements)"),
-  %% debugState(State),
-  %% debugEvent(Event),
+  debugMessage("Receive text events (in case of mixed elements)"),
+  debugState(State),
+  debugEvent(Event),
   case Event of 
     {characters, Characters} ->
       State#state{currentState = {'#text', Type, append(TextSoFar, Characters)}};
@@ -712,9 +714,9 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
                                                   th = TypeHierarchy,
                                                   tns = Tns},
                                    namespaces = Namespaces}) -> 
-  %% debugMessage("the work"),
-  %% debugState(State),
-  %% debugEvent(Event),
+  debugMessage("the work"),
+  debugState(State),
+  debugEvent(Event),
   [#el{alts = Alternatives, 
        mn = MinOccurs,
        mx = MaxOccurs,
@@ -726,10 +728,10 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
         {value, #alt{tp = Type, rl = RealElement2, mn = Min, mx = Max}} ->
 	  %% This is the first or a second or third (or ...) instance of the element that we 
 	  %% are 'working on' 
-	  %% debug("This is a valid alternative"),
+	  debug("This is a valid alternative"),
 	  if 
 	    MaxOccurs /= unbound, ReceivedSoFar >= MaxOccurs ->
-	      %% debug("But we have already recieved this event the maximum number of times"),
+	      debug("But we have already recieved this event the maximum number of times"),
               %% move on
               NewState = State#state{currentState = #cs{re = NextElements, 
                                                         sf = 0, 
@@ -738,7 +740,8 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
                                                         mxd = Mixed}},
 	      stateMachine(Event, NewState);
 	    true ->
-	      %% debug("Another event of this type is allowed"),
+	      debug("Another event of this type is allowed"),
+              debugFormat("Alternatives: ~p, Min is: ~p, Max is: ~p", [Alternatives, Min, Max]),
               if 
                 %% if max > 1, go to a new state that deals with these alternatives
                 %% - #altState{name, type, real, receivedSoFar, acc, min, max, model, namespaces}
@@ -751,7 +754,7 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
                 true -> 
 	          case Type of 
 		    {'#PCDATA', PCDataType} ->
-		      %% debug("receive text events"),
+		      debug("receive text events"),
 		      %% push the current status, create a new level in the state machine
                       case (Nullable==true) andalso findNullableAttribute(Attributes) of
                         true ->
@@ -764,7 +767,7 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
 		    _Else -> 
 		      %% not text: a complex type.
 		      %% look for the type discription
-	              %% debug("Not text: a complex type"),
+	              debug("Not text: a complex type"),
                       %% Look for xsi:type attribute
 		      TypeDef = findType(Type, Types, Attributes, TypeHierarchy, Namespaces, NamespaceMapping),
                       #type{els = Elements, tp = Tp, mxd = Mxd} = TypeDef,
@@ -792,7 +795,7 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
                           %% attributes...
                           #cs{re = [], sf =0, er = {nil, NewRecord}, rl = RealElement2, mxd = NewMxd};
                         Tp == sequence ->
-                          %% debug(NewRecord),
+                          debug(NewRecord),
                           #cs{re = Elements, sf =0, er = NewRecord, rl = RealElement2, mxd = NewMxd};
                         Tp == all ->
                           #all{re = Elements, er = NewRecord}
@@ -805,7 +808,7 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
 		          %% push the current status, create a new level in the state machine
                           NewState;
 		        true -> 
-                          %% debug("a helper state"),
+                          debug("a helper state"),
                           %% a helper-state. The tag we just received was NOT a start tag for a 
 		          %% corresponding enclosing element - there are no enclosing tags. The
 		          %% tag just helped us to select the next type. Re-use the current event.
@@ -826,7 +829,7 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
               {value, #alt{nxt = NextTags, tp = Type, anyInfo = AnyInfo, rl = RealElement2}} 
               when AnyInfo#anyInfo.prCont /= "strict" ->
               %% If the tag is in NextTags, we have to move on
-                 %% debug(NextTags),
+                 debug(NextTags),
                  case lists:member(Name, NextTags) of
                    true ->
                      NewState = undefined;
@@ -853,12 +856,12 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
                              end;
 		           true ->  %% not a real element
 		             TypeDef = findType(Type, Types, Attributes, TypeHierarchy, Namespaces, NamespaceMapping),
-                             %% debug(Type),
+                             debug(Type),
                              #type{els = Elements, tp = Tp, mxd = Mxd} = TypeDef,
                              NewRecord = newRecord(TypeDef),
                              case Tp of
                                sequence ->
-                                 %% debug(NewRecord),
+                                 debug(NewRecord),
                                  NewCurrentState = #cs{re = Elements, sf =0, er = NewRecord, rl = RealElement2,
                                                        mxd = Mxd};
                                all ->
@@ -876,9 +879,9 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
                  end;
 
        	      _NotAny ->
-                 %% debug(lists:keysearch('#any', #alt.tag, Alternatives)),
-	         %% debug("no Any alternative"),
-                 %% debug(Alternatives),
+                 debug(lists:keysearch('#any', #alt.tag, Alternatives)),
+	         debug("no Any alternative"),
+                 debug(Alternatives),
                  NewState = undefined
            end,
 
@@ -886,17 +889,17 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
               NewState == undefined ->
               %% We received another element. First see if we should not have received more instances corresponding
 	      %% with the current 'state', and if that is ok, change to the next state (and try to match this event there)
-	         %% debug("Received another element"),
+	         debug("Received another element"),
 	         if 
 	           ReceivedSoFar < MinOccurs ->
-                      %% debug(Alternatives),
-                      %% debug(Name),
-                      %% debug(ReceivedSoFar),
-                      %% debug(MinOccurs),
-                      %% debugState(State),
+                      debug(Alternatives),
+                      debug(Name),
+                      debug(ReceivedSoFar),
+                      debug(MinOccurs),
+                      debugState(State),
                       throw({error, "Missing element before: " ++ LocalName});
 	           true ->
-	              %% debug("Moving on to the next state"),
+	              debug("Moving on to the next state"),
                       NextState2 = State#state{currentState = #cs{re = NextElements, 
                                                                   sf =0, 
                                                                   er = ElementRecord, 
@@ -910,7 +913,7 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
       end;
 
     {characters, Characters} ->
-      %% debug("hier"),
+      debug("hier"),
       case lists:keysearch('#text', #alt.tag, Alternatives) of
         {value, #alt{tp = {'#PCDATA', PCDataType}, rl = Rl}} when Rl /= true ->
 	  %% Type == '#text' ->  receive text events
@@ -920,7 +923,7 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
 	              resultSoFar = [State#state.currentState | ResultSoFar]};
 
         {value, #alt{tp = Type, rl = Rl}} when Rl /= true ->
-          %% debug("odd case"),
+          debug("odd case"),
           %% TODO: this seems to be a bit odd? What is this is a reference to a group?
           %% a helper element for this text
 	  %% look for the type discription
@@ -941,21 +944,21 @@ stateMachine(Event, State = #state{currentState = #cs{re = RemainingElements,
 	%% First see if we should not have received more instances corresponding
 	%% with the current 'state', and if that is ok, change to the next state. (and try to match the 
 	%% event in that state).
-        %% debug("text event not text alternative"),
+        debug("text event not text alternative"),
 	  if 
             Mixed == true ->
-              %% debug("mixed == true"),
+              debug("mixed == true"),
               State#state{currentState = {'#text', 'char', Characters}, 
 	                  resultSoFar = [State#state.currentState | ResultSoFar]};
               
 	    ReceivedSoFar < MinOccurs ->
-              %% debug(ReceivedSoFar),
-              %% debug(MinOccurs),
-              %% debug(State#state.currentState),
+              debug(ReceivedSoFar),
+              debug(MinOccurs),
+              debug(State#state.currentState),
               throw({error, "Missing element"});
 	    true ->
-              %% debug("mixed == false"),
-              %% debug(Mixed),
+              debug("mixed == false"),
+              debug(Mixed),
               NewState = State#state{currentState = #cs{re = NextElements, 
                                                         sf = 0, 
                                                         er = ElementRecord, 
@@ -993,7 +996,7 @@ stateMachine(Event, State = #state{currentState = #all{re = RemainingElements,
                                                   nss = NamespaceMapping,
                                                   th = TypeHierarchy},
                                    namespaces = Namespaces}) -> 
-  %% debug(Event),
+  debug(Event),
   case Event of 
     {startElement, Uri, LocalName, _Prefix, Attributes}  ->
       Name = eventName(LocalName, Uri, NamespaceMapping),
@@ -1079,7 +1082,7 @@ stateMachine(Event, State = #state{currentState = #all{re = RemainingElements,
 %% 'pop': the result is in Value, move up one level in the state machine and put the result in the right 
 %% place in the ElementRecord at that level.
 pop(Value, State = #altState{receivedSoFar=Count, acc=Acc}) ->
-   %% debug("pop to altState"),
+   debug("pop to altState"),
    State#altState{receivedSoFar=Count +1, acc=[Value| Acc]};
 
 pop(Value, #cs{re = NewRemainingElements, 
@@ -1102,7 +1105,7 @@ pop(Value, #cs{re = NewRemainingElements,
     true ->
       ElementRecord2 = setelement(SequenceNr + 2, NewElementRecord, Value)
   end,
-  %% debug("Pop"),
+  debug("Pop"),
   NewState#cs{sf = NewReceivedSoFar + 1, er = ElementRecord2};
 
 pop(Value, State = #all{}) ->
@@ -1121,7 +1124,7 @@ insertValue(Value, #cs{re = RemainingElements,
                        rl = RealElement,
                        mxd = Mixed}) ->
 
-  %% debug("insert value"),
+  debug("insert value"),
   %% printState(Cs),
   [#el{mx = MaxOccurs, nr = SequenceNr}| _NextElements] = RemainingElements,
   if 
@@ -1129,12 +1132,12 @@ insertValue(Value, #cs{re = RemainingElements,
     %% if maxOccurs > 1, the value is a list
       case element(SequenceNr + 2, ElementRecord) of
         undefined ->
-          %% debugFormat("received so far: ~p\n", [ReceivedSoFar]),
-          %% debugFormat("value: ~p\n", [element(SequenceNr + 2, ElementRecord)]),
+          debugFormat("received so far: ~p\n", [ReceivedSoFar]),
+          debugFormat("value: ~p\n", [element(SequenceNr + 2, ElementRecord)]),
 	  NewValue = [Value];
         CurrentValue -> 
-          %% debug(Mixed),
-          %% debug(CurrentValue),
+          debug(Mixed),
+          debug(CurrentValue),
 	  NewValue = CurrentValue ++ [Value]
       end;
     true ->
@@ -1238,7 +1241,7 @@ processAttributes(_Attributes = [#attribute{localName=LocalName, uri=Uri, value=
                         setelement(Position + 2, Record, ConvertedValue), 
                         Model, Namespaces, Nullable, Nil);
     _Else ->
-      %% debug(Name),
+      debug(Name),
       ConvertedValue = try convertPCData(Value, char, Namespaces, NamespaceMapping) 
       catch 
         _AnyClass:_Any ->
@@ -1260,7 +1263,7 @@ processAttributes(_Attributes = [#attribute{localName=LocalName, uri=Uri, value=
 
         %% TODO: do something with this!!!
         {"space", "http://www.w3.org/XML/1998/namespace"} ->
-          %% debug("got a space attrib"),
+          debug("got a space attrib"),
           Nil;
 
         {"noNamespaceSchemaLocation", "http://www.w3.org/2001/XMLSchema-instance"} ->
@@ -1274,15 +1277,15 @@ processAttributes(_Attributes = [#attribute{localName=LocalName, uri=Uri, value=
           %% see whether 'anyAttributes' was declared
           case AnyAttr of
             undefined -> 
-              %% debug(Value),
-              %% debug(ListOfAttributes),
-              %% debug(TypeDef),
+              debug(Value),
+              debug(ListOfAttributes),
+              debug(TypeDef),
               throw({error, "Unexpected attribute: " ++ LocalName});
 	    #anyAttr{ns = Namespace, tns = Tns} ->  %% 'processContents' is ignored ('skip' is assumed)
 	      %% no check whether the namespace meets the criteria
 	      case Namespace of
 	        "##local" ->
-                  %% debug(Uri),
+                  debug(Uri),
 		  if 
 		    Uri /= [] ->
                       throw({error, "Unexpected attribute: " ++ LocalName});
@@ -1290,7 +1293,7 @@ processAttributes(_Attributes = [#attribute{localName=LocalName, uri=Uri, value=
 		      Nil
 		  end;
 	        "##other"->
-                  %% debug(Uri),
+                  debug(Uri),
 		  if 
 		    Uri == [] ->
                       throw({error, "Unexpected attribute (not namespace qualified): " ++ LocalName});
@@ -1421,8 +1424,8 @@ matchesAnyInfo(Uri, #anyInfo{ns = Namespace, tns = Tns}, _) ->
           true
       end;
     _ ->   %% ##any, or a list of namespaces - the list is not checked
-      %% debug(Namespace),
-      %% debug("TODO!!"),
+      debug(Namespace),
+      debug("TODO!!"),
       true
   end.
 
